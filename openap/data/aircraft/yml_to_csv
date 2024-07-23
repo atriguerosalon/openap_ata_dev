@@ -1,0 +1,60 @@
+import yaml
+import os
+import pandas as pd
+
+def load_aircraft_data(folder_path):
+    aircraft_data = {}
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".yml"):
+            with open(os.path.join(folder_path, filename), 'r') as file:
+                data = yaml.safe_load(file)
+                icao_code = os.path.splitext(filename)[0].upper()
+                data['aircraft_name'] = data['aircraft']  # Store the full name as a field
+                aircraft_data[icao_code] = data
+    return aircraft_data
+
+def flatten_dict(d, parent_key='', sep='_'):
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+def aircraft_data_to_dataframe(aircraft_data):
+    flattened_data = {icao: flatten_dict(data) for icao, data in aircraft_data.items()}
+    df = pd.DataFrame.from_dict(flattened_data, orient='index')
+    return df
+
+def save_to_csv(df, output_file):
+    df.to_csv(output_file)
+    print(f"Data saved to {output_file}")
+
+# Usage
+folder_path = 'openap/data/aircraft' 
+aircraft_data = load_aircraft_data(folder_path)
+
+# Convert to DataFrame
+df = aircraft_data_to_dataframe(aircraft_data)
+
+# Optionally save to CSV
+save_to_csv(df, 'aircraft_data.csv')
+
+# Print the first few rows of the DataFrame
+print(df.head())
+
+# Print all column names
+print("\nAll columns in the DataFrame:")
+print(df.columns)
+
+# Example of how to access data using ICAO code
+icao_code = 'E190'  # Example ICAO code for Embraer E190
+if icao_code in df.index:
+    print(f"\nData for {icao_code}:")
+    print(f"Aircraft Name: {df.loc[icao_code, 'aircraft_name']}")
+    print(f"MTOW: {df.loc[icao_code, 'mtow']} kg")
+    print(f"Engine type: {df.loc[icao_code, 'engine_type']}")
+else:
+    print(f"No data found for ICAO code {icao_code}")
